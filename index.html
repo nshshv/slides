@@ -10,12 +10,6 @@
 		<link rel="stylesheet" href="dist/reveal.css">
 		<link rel="stylesheet" href="dist/theme/league.css" id="theme">
 
-		<style>
-			body { font-family: Arial, sans-serif; }
-			table { border-collapse: collapse; margin: 20px 0; }
-			td, th { border: 1px solid #000; padding: 8px; text-align: center; }
-		</style>
-
 		<!-- Theme used for syntax highlighted code -->
 		<link rel="stylesheet" href="plugin/highlight/monokai.css" id="highlight-theme">
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
@@ -56,59 +50,95 @@
 				
 				<section style="font-size: 40%">
 					<h3>LU-разложение матрицы</h3>
-    <label for="matrixInput">Введите матрицу (разделяйте элементы пробелами, строки - новой строкой):</label><br>
-    <textarea id="matrixInput" rows="10" cols="30"></textarea><br>
-    <button onclick="performLUDecomposition()">Вычислить LU-разложение</button>
-
-    <h2>Результат:</h2>
-    <div id="result"></div>
-
-    <script>
-        function performLUDecomposition() {
-            const input = document.getElementById('matrixInput').value.trim();
-            const matrix = input.split('\n').map(row => row.split(' ').map(Number));
-            const n = matrix.length;
-            const L = Array.from({ length: n }, () => Array(n).fill(0));
-            const U = Array.from({ length: n }, () => Array(n).fill(0));
-
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                    if (j < i) {
-                        L[j][i] = 0;
-                    } else {
-                        L[i][j] = matrix[i][j];
-                        for (let k = 0; k < i; k++) {
-                            L[i][j] -= L[i][k] * U[k][j];
-                        }
-                    }
-                }
-                for (let j = 0; j < n; j++) {
-                    if (j < i) {
-                        U[i][j] = 0;
-                    } else if (j === i) {
-                        U[i][j] = 1;
-                    } else {
-                        U[i][j] = matrix[i][j];
-                        for (let k = 0; k < i; k++) {
-                            U[i][j] -= L[i][k] * U[k][j];
-                        }
-                        U[i][j] /= L[i][i];
-                    }
-                }
-            }
-
-            displayResult(L, U);
-        }
-
-        function displayResult(L, U) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = '<h3>Матрица L:</h3>' + matrixToHTML(L) + '<h3>Матрица U:</h3>' + matrixToHTML(U);
-        }
-
-        function matrixToHTML(matrix) {
-            return '<table>' + matrix.map(row => '<tr>' + row.map(cell => `<td>${cell.toFixed(2)}</td>`).join('') + '</tr>').join('') + '</table>';
-        }
-    </script>
+					<form id="matrixForm">
+						<label for="n">Введите количество строк матрицы A (n):</label>
+						<input type="number" id="n" required>
+						<br>
+						<label for="m">Введите количество столбцов(с учетом вектора b) (m):</label>
+						<input type="number" id="m" required>
+						<br>
+						<label for="matrix">Введите элементы матрицы A и вектор b(через пробел, последний элемент строки сооветсвует вектору):</label>
+						<textarea id="matrix" rows="5" cols="30" required></textarea>
+						<br>
+						<button type="submit">Вычислить</button>
+					</form>
+					<h2>Результаты:</h2>
+					<pre id="output"></pre>
+				
+					<script>
+						document.getElementById('matrixForm').addEventListener('submit', function(event) {
+							event.preventDefault();
+				
+							const n = parseInt(document.getElementById('n').value);
+							const m = parseInt(document.getElementById('m').value);
+							const matrixInput = document.getElementById('matrix').value.trim().split('\n');
+							const a = { n: n, m: m, a: [] };
+				
+							for (let i = 0; i < n; i++) {
+								a.a[i] = matrixInput[i].trim().split(' ').map(Number);
+							}
+				
+							let U = Array.from({ length: n }, () => new Array(m).fill(0));
+							let L = Array.from({ length: n }, () => new Array(m).fill(0));
+				
+							for (let i = 0; i < n; i++) {
+								for (let j = 0; j < m; j++) {
+									if (i === j) L[i][j] = 1; 
+								}
+							}
+				
+							for (let i = 0; i < n; i++) {
+								for (let j = 0; j < m; j++) {
+									if (i <= j) {
+										let sum = 0;
+										for (let k = 0; k < i; k++) {
+											sum += L[i][k] * U[k][j];
+										}
+										U[i][j] = a.a[i][j] - sum;
+									} else {
+										let sum = 0;
+										for (let k = 0; k < j; k++) {
+											sum += L[i][k] * U[k][j];
+										}
+										L[i][j] = (a.a[i][j] - sum) / U[j][j]; 
+									}
+								}
+							}
+				
+							// Нахождение вектора y с помощью L
+							let y = new Array(n).fill(0);
+							for (let i = 0; i < n; i++) {
+								let sum = 0;
+								for (let j = 0; j < i; j++) {
+									sum += L[i][j] * y[j];
+								}
+								y[i] = a.a[i][m - 1] - sum; // Используем последний столбец как вектор b
+							}
+				
+							// Нахождение вектора x с помощью U
+							let x = new Array(n).fill(0);
+							for (let i = n - 1; i >= 0; i--) {
+								let sum = 0;
+								for (let j = i + 1; j < n; j++) {
+									sum += U[i][j] * x[j];
+								}
+								x[i] = (y[i] - sum) / U[i][i];
+							}
+				
+							// Вывод результатов
+							let output = "L:\n";
+							for (let i = 0; i < n; i++) {
+								output += L[i].join(' ') + '\n';
+							}
+							output += "\nU:\n";
+							for (let i = 0; i < n; i++) {
+								output += U[i].join(' ') + '\n';
+							}
+							output += "\nРешение x:\n";
+							output += x.join(' ') + '\n'; // Вывод вектора x
+							document.getElementById('output').textContent = output;
+						});
+					</script>
 				</section>
 
 				<section data-markdown="markdown/Discrepancy.md"></section>
